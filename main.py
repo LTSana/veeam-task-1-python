@@ -7,11 +7,19 @@
 ## 3. Remove any files that aren't in the source folder anymore.
 ## 4. Perform a MD5 check on source folder and replica folder.
 ## 5. Setup a sync interval. (5 minutes?)
+## 
+## Question?
+## Should we handle empty directories. In the replica directory we should remove any empty directories or just make an exact copy
 
 import os
 
 def getFolders(sourcePath: str) -> list:
     """ This function is for building a list of all the paths for each file in the source folder. """
+    
+    # Check if the path exists
+    if not os.path.exists(sourcePath):
+        print(f"Path: \"{sourcePath}\" does not exist! Check your path or try another path.")
+        return []
 
     # Crawl the parent folder and subfolders of the given path
     result = []
@@ -24,6 +32,14 @@ def getFolders(sourcePath: str) -> list:
                     "filename": name, # Name of the file
                     "directory": root.replace(sourcePath, "", 1), # The directory the file is in
                 })
+            
+        # Store all the directories
+        for d in dirs:
+            result.append({
+                "path": None,
+                "filename": None,
+                "directory": os.path.join(root.replace(sourcePath, "", 1), d), # The directory
+            })
 
     return result
 
@@ -48,6 +64,10 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
             except OSError as err:
                 print(f"An Error occured during folder creation of {path.get('directory')}! Error: {err}")
                 return False
+            
+        # If the there is no file to save just skip
+        if not path.get("path"):
+            continue # Skip
         
         # Open the file original file in binary
         try:
@@ -70,14 +90,44 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
         # Close the files
         file0.close()
         file1.close()
-        
-        # Return true to signal that it was successful
-        return True
+
+    # Return true to signal that it was successful
+    return True
     
 
-def removeOldies(sourcePath: str, replicaPath: str) -> bool:
-    # TODO
-    return False
+def removeOldies(source: str, replica: str) -> bool:
+    """ This function is for removing files and folders that do not exist in the source folder anymore."""
+    
+    # Crawl the source folder
+    sourceFolders = getFolders(source)
+    
+    # Crawl the replica folder
+    replicaFolders = getFolders(replica)
+    
+    # Iterate through the replica folder
+    for path in replicaFolders:
+        
+        # Check if the file exists in source
+        if not any(str(a.get("path")).replace(source, "", 1) == str(path.get("path")).replace(replica, "", 1) for a in sourceFolders):
+            
+            # Remove the file from the replica
+            try:
+                os.remove(path.get("path"))
+            except OSError as err:
+                print(f"An Error occured during file removal of {path.get('path')}! Error: {err}")
+                return False # IDEA: Stop the removal or just continue to the next file?
+        
+        # Check if the directory exists in source
+        if not any(str(a.get("directory")).replace(source, "", 1) == str(path.get("directory")).replace(replica, "", 1) for a in sourceFolders):
+            
+            # Remove the directory from the replica
+            try:
+                os.removedirs(f"{replica}/{path.get(f'directory')}")
+            except OSError as err:
+                print(f"An Error occured during directory removal of {path.get('directory')}! Error: {err}")
+                return False # IDEA: Stop the removal or just continue to the next file?
+    
+    return True
 
 
 def md5Check(sourcePath: str, replicaPath: str) -> bool:
@@ -85,16 +135,31 @@ def md5Check(sourcePath: str, replicaPath: str) -> bool:
     return False
 
 
-if __name__ == "__main__":
+def process(source: str, replica: str):
     
     # Crawl the source folder
-    foundFolders = getFolders("source")
+    foundFolders = getFolders(source)
+    
+    # Check if we found any files
+    if len(foundFolders) == 0:
+        print("Folder is empty! Nothing to backup.")
+        return False
+    
     print(f"Found Folders: {foundFolders}")
     
     # Create the replica
     print("Creating clones...")
-    if not cloneSource("replica", foundFolders):
+    if not cloneSource(replica, foundFolders):
         print("Failed to create the replica folder properly")
-    else:
-        print("Successfully cloned!")
-    
+        return False
+    print("Successfully cloned!")
+
+    # Remove any files that do not exist
+    if not removeOldies(source, replica):
+        print("Failed to remove old files.")
+        return False
+    print("Successfully removed old files.")
+
+
+if __name__ == "__main__":
+    process("source", "replica")
