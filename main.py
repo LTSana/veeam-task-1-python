@@ -5,7 +5,7 @@
 ## 1. Crawl the source folder and find subfolders. (Done)
 ## 2. Start cloning the files in the source folder to replica. (Done)
 ## 3. Remove any files & folders that aren't in the source folder anymore. (Done)
-## 4. Perform a MD5 check on source folder and replica folder.
+## 4. Perform a MD5 check on source folder and replica folder. (Done)
 ## 5. Setup a sync interval. (5 minutes?)
 ## 6. Make a log function that will store all the actions performed with timestamps.
 ## 
@@ -97,6 +97,7 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
         print("Performing MD5 check...")
         if not md5Check(path.get("path"), f"{replicaPath}/{path.get('directory')}/{path.get('filename')}"):
             print("Failed MD5 check!")
+            # TODO: Deal with failed checks
         print("MD5 check successful!")
 
     # Return true to signal that it was successful
@@ -163,7 +164,7 @@ def md5Check(sourcePath: str, replicaPath: str) -> bool:
     """ This function compares the hashes for each file. """
     
     # Compare each others hashes to determine if 
-    # the were clone accurately and not corrupted
+    # the clone is good and not corrupted
     if md5Hasher(sourcePath) != md5Hasher(replicaPath):
         return False
     return True
