@@ -4,14 +4,16 @@
 ##
 ## 1. Crawl the source folder and find subfolders. (Done)
 ## 2. Start cloning the files in the source folder to replica. (Done)
-## 3. Remove any files that aren't in the source folder anymore.
+## 3. Remove any files & folders that aren't in the source folder anymore. (Done)
 ## 4. Perform a MD5 check on source folder and replica folder.
 ## 5. Setup a sync interval. (5 minutes?)
+## 6. Make a log function that will store all the actions performed with timestamps.
 ## 
 ## Question?
 ## Should we handle empty directories. In the replica directory we should remove any empty directories or just make an exact copy
 
 import os
+import hashlib
 
 def getFolders(sourcePath: str) -> list:
     """ This function is for building a list of all the paths for each file in the source folder. """
@@ -90,6 +92,12 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
         # Close the files
         file0.close()
         file1.close()
+        
+        # Perform the MD5 check
+        print("Performing MD5 check...")
+        if not md5Check(path.get("path"), f"{replicaPath}/{path.get('directory')}/{path.get('filename')}"):
+            print("Failed MD5 check!")
+        print("MD5 check successful!")
 
     # Return true to signal that it was successful
     return True
@@ -130,9 +138,35 @@ def removeOldies(source: str, replica: str) -> bool:
     return True
 
 
+def md5Hasher(filePath: str) -> str:
+    """ This function gets the md5 hash of the file and returns it. """
+    
+    # Initialize the hasher
+    hasher = hashlib.md5()
+    
+    # Open the file
+    try:
+        file = open(file=filePath, mode="rb")
+    except OSError as err:
+        print(f"An Error occured during opening of the MD5 hash file of {filePath}! Error: {err}")
+        return False
+    
+    # Update the hasher
+    for line in file.readlines():
+        hasher.update(line)
+    
+    # Return the hash
+    return hasher.hexdigest()
+
+
 def md5Check(sourcePath: str, replicaPath: str) -> bool:
-    # TODO
-    return False
+    """ This function compares the hashes for each file. """
+    
+    # Compare each others hashes to determine if 
+    # the were clone accurately and not corrupted
+    if md5Hasher(sourcePath) != md5Hasher(replicaPath):
+        return False
+    return True
 
 
 def process(source: str, replica: str):
@@ -144,8 +178,6 @@ def process(source: str, replica: str):
     if len(foundFolders) == 0:
         print("Folder is empty! Nothing to backup.")
         return False
-    
-    print(f"Found Folders: {foundFolders}")
     
     # Create the replica
     print("Creating clones...")
