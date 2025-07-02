@@ -5,18 +5,22 @@
 ## 1. Crawl the source folder and find subfolders. (Done)
 ## 2. Start cloning the files in the source folder to replica. (Done)
 ## 3. Remove any files & folders that aren't in the source folder anymore. (Done)
-## 4. Perform a MD5 check on source folder and replica folder. (Done, TODO)
-## 5. Setup a sync interval. (5 minutes?)
+## 4. Perform a MD5 check on source folder and replica folder. (Done)
+## 5. Setup a sync interval. It is in seconds and has a limit of syncs done. (Done)
 ## 6. Make a log function that will store all the actions performed with timestamps. (Done)
 ## 
 ## Question?
 ## Should we handle empty directories. In the replica directory we should remove any empty directories or just make an exact copy.
 ## ANSWER: We just copy the directory even if empty and remove it if it's not in the source directory.
+## 
+## Question?
+## The sync intervals are set in seconds with a for loop rather than using the third-party library "schedule".
+##
 
 import os
 import hashlib
 import time
-import schedule
+import sys
 
 from datetime import datetime
 from pathlib import Path
@@ -41,21 +45,25 @@ def getFolders(sourcePath: str) -> list:
 
         # Store all the files in the result list
         for name in files:
-            logger(f"Found file: {os.path.join(root, name)}")
             result.append({
                     "path": os.path.join(root, name), # File path name
                     "filename": name, # Name of the file
                     "directory": root.replace(sourcePath, "", 1), # The directory the file is in
                 })
+            
+            # Log
+            logger(f"Found file: {os.path.join(root, name)}")
 
         # Store all the directories
         for d in dirs:
-            logger(f"Found directory: {os.path.join(root.replace(sourcePath, '', 1), d)}")
             result.append({
                 "path": None,
                 "filename": None,
                 "directory": os.path.join(root.replace(sourcePath, "", 1), d), # The directory
             })
+            
+            # Log
+            logger(f"Found directory: {os.path.join(root.replace(sourcePath, '', 1), d)}")
 
     return result
 
@@ -117,6 +125,8 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
         # Perform the MD5 check
         logger(f"MD5 check: {path.get('path')}")
         if not md5Check(path.get("path"), f"{replicaPath}/{path.get('directory')}/{path.get('filename')}"):
+            
+            # Log
             logger(f"MD5 check failed for: {path.get('path')}", 2)
             
             # Remove the file
@@ -126,6 +136,8 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
                 logger(f"An Error occured during file removal of {replicaPath}/{path.get('directory')}/{path.get('filename')}! Error: {err}", 2)
                 return False # IDEA: Stop the removal or just continue to the next file?
         else:
+            
+            # Log
             logger("MD5 check successful!")
             
         # Log
@@ -246,7 +258,7 @@ def logger(msg: str, level: int = 0) -> str:
     return formattedMsg
 
 
-def process(source: str, replica: str, logs: str = None):
+def process(source: str, replica: str, logs: str = None) -> bool:
     
     # Set the path to the log path
     if logs:
@@ -283,14 +295,20 @@ def process(source: str, replica: str, logs: str = None):
 
     # Log
     logger("Backup completed.")
+    
+
+def main():
+    
+    # Check if the user has entered 
+    # the amount of arguments required
+    if len(sys.argv) <= 5:
+        print("Missing arguments!")
+
+    # Trigger the scheduler
+    for i in range(int(sys.argv[4])):
+        process(source=sys.argv[1], replica=sys.argv[2], logs=sys.argv[5])
+        time.sleep(int(sys.argv[3]))
 
 
 if __name__ == "__main__":
-
-    # Run the task every 30 seconds
-    schedule.every(30).seconds.do(process, source="source", replica="replica")
-
-    # Trigger the scheduler
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    main()
