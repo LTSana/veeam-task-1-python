@@ -14,7 +14,9 @@
 ## ANSWER: We just copy the directory even if empty and remove it if it's not in the source directory.
 ## 
 ## Question?
-## The sync intervals are set in seconds with a for loop rather than using the third-party library "schedule".
+## The sync intervals are set in seconds with a for loop rather than using the third-party library "schedule". Is the loop supposed to use seconds, minutes or hours?
+## I am not sure if I am allowed to use third-party libraries including for CLI frameworks.
+## ANSWER: We keep it simple, no third-party libraries and we will use seconds for the intervals.
 ##
 
 import os
@@ -259,6 +261,7 @@ def logger(msg: str, level: int = 0) -> str:
 
 
 def process(source: str, replica: str, logs: str = None) -> bool:
+    """ This function is each step needed to create a replica of the source directory. """
     
     # Set the path to the log path
     if logs:
@@ -276,7 +279,7 @@ def process(source: str, replica: str, logs: str = None) -> bool:
     
     # Check if we found any files
     if len(foundFolders) == 0:
-        logger("Folder is empty! Nothing to backup!", 1)
+        logger("Folder is empty! Nothing to backup!", 2)
         return False
     
     # Create the replica
