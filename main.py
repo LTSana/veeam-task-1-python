@@ -111,7 +111,7 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
     for path in paths:
         
         # Create the directory for the file
-        if len(path.get('directory')) > 0:
+        if len(path.get('directory')) > 0 and not os.path.exists(f"{replicaPath}/{path.get('directory')}"):
             
             # Log
             logger(f"Creating directory in replica: {path.get('directory')}")
