@@ -38,8 +38,7 @@ def getFolders(sourcePath: str) -> list:
     
     # Check if the path exists
     if not os.path.exists(sourcePath):
-        logger(f"Path: \"{sourcePath}\" does not exist! Check your path or try another path.", 2)
-        return []
+        raise NotADirectoryError(f"Path: \"{sourcePath}\" does not exist! Check your path or try another path.")
 
     # Crawl the parent folder and subfolders of the given path
     result = []
@@ -73,12 +72,13 @@ def getFolders(sourcePath: str) -> list:
 def cloneSource(replicaPath: str, paths: list) -> bool:
     """ This function is for cloning the source folder. """
     
+    logger("Creating copies...")
+    
     # Check if the replica path exists else create it
     try:
         os.makedirs(replicaPath, exist_ok=True)
     except OSError as err:
-        logger(f"An Error occured duing replica folder creation! Error: {err}", 2)
-        return False
+        raise OSError(f"An Error occured duing replica folder creation! Error: {err}")
     
     # Iterate through the paths list
     for path in paths:
@@ -92,8 +92,7 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
             try:
                 os.makedirs(f"{replicaPath}/{path.get('directory')}", exist_ok=True)
             except OSError as err:
-                logger(f"An Error occured during folder creation of {path.get('directory')}! Error: {err}", 2)
-                return False
+                raise OSError(f"An Error occured during folder creation of {path.get('directory')}! Error: {err}")
             
         # If there is no file to save just skip
         if not path.get("path"):
@@ -106,15 +105,13 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
         try:
             file0 = open(file=path.get("path"), mode="rb")
         except OSError as err:
-            logger(f"An Error occured during cloning of {path.get('path')}! Error: {err}", 2)
-            return False
+            raise OSError(f"An Error occured during cloning of {path.get('path')}! Error: {err}")
         
         # Create the file in the replica folder
         try:
             file1 = open(file=f"{replicaPath}/{path.get('directory')}/{path.get('filename')}", mode="wb")
         except OSError as err:
-            logger(f"An Error occured during creation of {replicaPath}/{path.get('path')}! Error: {err}", 2)
-            return False
+            raise OSError(f"An Error occured during creation of {replicaPath}/{path.get('path')}! Error: {err}")
         
         # Write the data from file 0 to file 1
         for line in file0.readlines():
@@ -135,8 +132,7 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
             try:
                 os.remove(f"{replicaPath}/{path.get('directory')}/{path.get('filename')}")
             except OSError as err:
-                logger(f"An Error occured during file removal of {replicaPath}/{path.get('directory')}/{path.get('filename')}! Error: {err}", 2)
-                return False # IDEA: Stop the removal or just continue to the next file?
+                raise OSError(f"An Error occured during file removal of {replicaPath}/{path.get('directory')}/{path.get('filename')}! Error: {err}")
         else:
             
             # Log
@@ -151,6 +147,8 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
 
 def removeOldies(source: str, replica: str) -> bool:
     """ This function is for removing files and folders that do not exist in the source folder anymore."""
+    
+    logger("Removing any old files and directories...")
     
     # Crawl the source folder
     sourceFolders = getFolders(source)
@@ -171,8 +169,7 @@ def removeOldies(source: str, replica: str) -> bool:
             try:
                 os.remove(path.get("path"))
             except OSError as err:
-                logger(f"An Error occured during file removal of {path.get('path')}! Error: {err}", 2)
-                return False # IDEA: Stop the removal or just continue to the next file?
+                raise OSError(f"An Error occured during file removal of {path.get('path')}! Error: {err}")
         
         # Check if the directory exists in source
         if not any(str(a.get("directory")).replace(source, "", 1) == str(path.get("directory")).replace(replica, "", 1) for a in sourceFolders):
@@ -184,8 +181,7 @@ def removeOldies(source: str, replica: str) -> bool:
             try:
                 os.removedirs(f"{replica}/{path.get(f'directory')}")
             except OSError as err:
-                logger(f"An Error occured during directory removal of {replica}/{path.get(f'directory')}! Error: {err}", 2)
-                return False # IDEA: Stop the removal or just continue to the next file?
+                raise OSError(f"An Error occured during directory removal of {replica}/{path.get(f'directory')}! Error: {err}")
     
     return True
 
@@ -275,7 +271,11 @@ def process(source: str, replica: str, logs: str = None) -> bool:
         return False
     
     # Crawl the source folder
-    foundFolders = getFolders(source)
+    try:
+        foundFolders = getFolders(source)
+    except NotADirectoryError as err:
+        logger(err, 2)
+        return False
     
     # Check if we found any files
     if len(foundFolders) == 0:
@@ -283,16 +283,22 @@ def process(source: str, replica: str, logs: str = None) -> bool:
         return False
     
     # Create the replica
-    logger("Creating copies...")
-    if not cloneSource(replica, foundFolders):
-        logger("Failed to create the replica folder properly", 2)
+    try:
+        if not cloneSource(replica, foundFolders):
+            logger("Failed to create the replica folder properly", 2)
+            return False
+    except OSError as err:
+        logger(err, 2)
         return False
     logger("Successfully cloned!")
 
     # Remove any files that do not exist
-    logger("Removing any old files and directories...")
-    if not removeOldies(source, replica):
-        logger("Failed to remove old files!", 2)
+    try:
+        if not removeOldies(source, replica):
+            logger("Failed to remove old files!", 2)
+            return False
+    except OSError as err:
+        logger(err, 2)
         return False
     logger("Successfully removed old files!")
 
@@ -307,9 +313,32 @@ def main():
     if len(sys.argv) <= 5:
         print("Missing arguments!")
 
+    # Check if the arguments are valid
+    try:
+        int(sys.argv[3])
+    except ValueError as err:
+        logger(f"Sync timer must be integer! {err}", 1)
+        return False
+    try:
+        int(sys.argv[4])
+    except ValueError as err:
+        logger(f"Sync amounts must be integer! {err}", 1)
+        return False
+    
+    if not isinstance(sys.argv[1], str):
+        logger("Source path must be string!", 1)
+        return False
+    if not isinstance(sys.argv[2], str):
+        logger("Replica path must be string!", 1)
+        return False
+    if not isinstance(sys.argv[5], str):
+        logger("Log file path must be string!", 1)
+        return False
+
     # Trigger the scheduler
     for i in range(int(sys.argv[4])):
         process(source=sys.argv[1], replica=sys.argv[2], logs=sys.argv[5])
+        print(i)
         time.sleep(int(sys.argv[3]))
 
 
