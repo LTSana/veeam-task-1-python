@@ -69,6 +69,33 @@ def getFolders(sourcePath: str) -> list:
     return result
 
 
+def createCopy(sourcePath: str, replicaPath: str) -> None:
+    """"""
+    
+    # Log
+    logger(f"Creating copy of {sourcePath}")
+    
+    # Open the file original file in binary
+    try:
+        file0 = open(file=sourcePath, mode="rb")
+    except OSError as err:
+        raise OSError(f"An Error occured during cloning of {sourcePath}! Error: {err}")
+    
+    # Create the file in the replica folder
+    try:
+        file1 = open(file=replicaPath, mode="wb")
+    except OSError as err:
+        raise OSError(f"An Error occured during creation of {replicaPath}! Error: {err}")
+    
+    # Write the data from file 0 to file 1
+    for line in iter(lambda: file0.read(1024 * 1024), b""):
+        file1.write(line)
+    
+    # Close the files
+    file0.close()
+    file1.close()
+
+
 def cloneSource(replicaPath: str, paths: list) -> bool:
     """ This function is for cloning the source folder. """
     
@@ -98,48 +125,29 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
         if not path.get("path"):
             continue # Skip
         
-        # Log
-        logger(f"Creating copy of {path.get('path')}")
+        # Check if the file exists already
+        if not os.path.isfile(f"{replicaPath}/{path.get('directory')}/{path.get('filename')}"):
+            try:
+                createCopy(path.get("path"), f"{replicaPath}/{path.get('directory')}/{path.get('filename')}")
+            except OSError as err:
+                raise OSError(err)
         
-        # Open the file original file in binary
-        try:
-            file0 = open(file=path.get("path"), mode="rb")
-        except OSError as err:
-            raise OSError(f"An Error occured during cloning of {path.get('path')}! Error: {err}")
-        
-        # Create the file in the replica folder
-        try:
-            file1 = open(file=f"{replicaPath}/{path.get('directory')}/{path.get('filename')}", mode="wb")
-        except OSError as err:
-            raise OSError(f"An Error occured during creation of {replicaPath}/{path.get('path')}! Error: {err}")
-        
-        # Write the data from file 0 to file 1
-        for line in file0.readlines():
-            file1.write(line)
-        
-        # Close the files
-        file0.close()
-        file1.close()
-        
-        # Perform the MD5 check
+        # Perform the MD5 check (This will check for any changes in the files)
         logger(f"MD5 check: {path.get('path')}")
         if not md5Check(path.get("path"), f"{replicaPath}/{path.get('directory')}/{path.get('filename')}"):
             
-            # Log
-            logger(f"MD5 check failed for: {path.get('path')}", 2)
-            
-            # Remove the file
+            # Create a copy of the file if the MD5 check does not match
             try:
-                os.remove(f"{replicaPath}/{path.get('directory')}/{path.get('filename')}")
+                createCopy(path.get("path"), f"{replicaPath}/{path.get('directory')}/{path.get('filename')}")
             except OSError as err:
-                raise OSError(f"An Error occured during file removal of {replicaPath}/{path.get('directory')}/{path.get('filename')}! Error: {err}")
+                raise OSError(err)
+            
+            # Log
+            logger("Copied successfully.")
         else:
             
             # Log
-            logger("MD5 check successful!")
-            
-        # Log
-        logger("Copied successfully.")
+            logger("MD5 check successful! Files are identical no need to create/update.")
 
     # Return true to signal that it was successful
     return True
@@ -200,7 +208,7 @@ def md5Hasher(filePath: str) -> str:
         return False
     
     # Update the hasher
-    for line in file.readlines():
+    for line in iter(lambda: file.read(1024 * 1024), b""):
         hasher.update(line)
     
     # Return the hash
