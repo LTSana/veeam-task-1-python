@@ -232,20 +232,24 @@ def logger(msg: str, level: int = 0) -> str:
     
     # Check if the path to the log file exists
     if not os.path.exists(GLOBAL_LOG_PATH):
-        raise FileNotFoundError(f"ERROR: {GLOBAL_LOG_PATH} is invalid!")
+        raise NotADirectoryError(f"ERROR: {GLOBAL_LOG_PATH} is invalid!")
     
     # Create the log file if it does not exist
     try:
+
+        # Check if this is the first time creating the log file
+        initializingLogFile = os.path.isfile(f"{os.path.join(GLOBAL_LOG_PATH, "log.txt")}")
+
+        # Create/open the log file
         file = open(file=f"{os.path.join(GLOBAL_LOG_PATH, "log.txt")}", mode="a")
-    except FileNotFoundError as err:
-        
-        # If the log file does not exist yet, create it
-        file = open(file=f"{os.path.join(GLOBAL_LOG_PATH, "log.txt")}", mode="w")
-        
+
+        # Add the column information
+        if not initializingLogFile:
+            file.write("| LEVEL | DATE | MESSAGE\n")
+
     except OSError as err:
-        print(f"An error occured during log file creation/opening! Error: {err}")
-        return ""
-    
+        raise OSError(f"An error occured during log file creation/opening! Error: {err}")
+
     # Write all the logs back to the file
     print(formattedMsg)
     file.write(formattedMsg + "\n")
@@ -260,14 +264,18 @@ def process(source: str, replica: str, logs: str = None) -> bool:
     """ This function is each step needed to create a replica of the source directory. """
     
     # Set the path to the log path
-    if logs:
+    if len(logs) > 0:
+        global GLOBAL_LOG_PATH
         GLOBAL_LOG_PATH = logs
     
     # Log
     try:
         logger("Starting backup...")
-    except FileNotFoundError as err:
-        print(f"Please enter a valid folder for log file! Leave empty to use default. Error: {err}")
+    except NotADirectoryError as err:
+        print(f"Please enter a valid folder for log file! Error: {err}")
+        return False
+    except OSError as err:
+        print(err)
         return False
     
     # Crawl the source folder
@@ -311,7 +319,14 @@ def main():
     # Check if the user has entered 
     # the amount of arguments required
     if len(sys.argv) <= 5:
-        print("Missing arguments!")
+        print("""Missing arguments! Must be as follows:
+- path to source folder
+- path to replica folder
+- interval between synchronizations 
+- amount of synchronizations 
+- path to log file
+              """)
+        return False
 
     # Check if the arguments are valid
     try:
@@ -338,7 +353,6 @@ def main():
     # Trigger the scheduler
     for i in range(int(sys.argv[4])):
         process(source=sys.argv[1], replica=sys.argv[2], logs=sys.argv[5])
-        print(i)
         time.sleep(int(sys.argv[3]))
 
 
