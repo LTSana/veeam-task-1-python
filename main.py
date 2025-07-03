@@ -70,7 +70,7 @@ def getFolders(sourcePath: str) -> list:
 
 
 def createCopy(sourcePath: str, replicaPath: str) -> None:
-    """"""
+    """ This function is to make copies of 2 files. """
     
     # Log
     logger(f"Creating copy of {sourcePath}")
@@ -99,22 +99,35 @@ def createCopy(sourcePath: str, replicaPath: str) -> None:
 def cloneSource(replicaPath: str, paths: list) -> bool:
     """ This function is for cloning the source folder. """
     
-    logger("Creating copies...")
+    logger("Checking source and replica integrity...")
     
     # Check if the replica path exists else create it
     try:
+
+        # Log
+        if not os.path.exists(replicaPath):
+            logger(f"Replica directory does not exist! Creating replica directory: {path.get('directory')}")
+        
         os.makedirs(replicaPath, exist_ok=True)
     except OSError as err:
         raise OSError(f"An Error occured duing replica folder creation! Error: {err}")
     
     # Iterate through the paths list
+    numCreatedFiles = 0
+    numCreatedDir = 0
+    numMD5pass = 0
+    numMD5updates = 0
     for path in paths:
         
         # Create the directory for the file
-        if len(path.get('directory')) > 0 and not os.path.exists(f"{replicaPath}/{path.get('directory')}"):
+        if len(path.get('directory')) > 0:
             
             # Log
-            logger(f"Creating directory in replica: {path.get('directory')}")
+            if not os.path.exists(f"{replicaPath}/{path.get('directory')}"):
+                logger(f"Creating directory in replica: {path.get('directory')}")
+                
+                # Increment the amount of directories created
+                numCreatedDir += 1
             
             try:
                 os.makedirs(f"{replicaPath}/{path.get('directory')}", exist_ok=True)
@@ -129,6 +142,9 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
         if not os.path.isfile(f"{replicaPath}/{path.get('directory')}/{path.get('filename')}"):
             try:
                 createCopy(path.get("path"), f"{replicaPath}/{path.get('directory')}/{path.get('filename')}")
+                
+                # Increment the amount of files created
+                numCreatedFiles += 1
             except OSError as err:
                 raise OSError(err)
         
@@ -144,10 +160,19 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
             
             # Log
             logger("Copied successfully.")
+            
+            # Increment the amount of MD5 updates
+            numMD5updates += 1
         else:
             
             # Log
-            logger("MD5 check successful! Files are identical no need to create/update.")
+            logger("MD5 check successful!")
+            
+            # Increment the amount of MD5 passes
+            numMD5pass += 1
+            
+    # Log
+    logger(f"Files created: {numCreatedFiles} - Directories created: {numCreatedDir} - MD5 Check pass: {numMD5pass} - MD5 Check update: {numMD5updates}")
 
     # Return true to signal that it was successful
     return True
@@ -165,6 +190,8 @@ def removeOldies(source: str, replica: str) -> bool:
     replicaFolders = getFolders(replica)
     
     # Iterate through the replica folder
+    numFilesRemoved = 0
+    numDirRemoved = 0
     for path in replicaFolders:
         
         # Check if the file exists in source
@@ -178,6 +205,9 @@ def removeOldies(source: str, replica: str) -> bool:
                 os.remove(path.get("path"))
             except OSError as err:
                 raise OSError(f"An Error occured during file removal of {path.get('path')}! Error: {err}")
+            
+            # Increment the amount of files removed
+            numFilesRemoved += 1
         
         # Check if the directory exists in source
         if not any(str(a.get("directory")).replace(source, "", 1) == str(path.get("directory")).replace(replica, "", 1) for a in sourceFolders):
@@ -190,6 +220,12 @@ def removeOldies(source: str, replica: str) -> bool:
                 os.removedirs(f"{replica}/{path.get(f'directory')}")
             except OSError as err:
                 raise OSError(f"An Error occured during directory removal of {replica}/{path.get(f'directory')}! Error: {err}")
+            
+            # Increment the amount of files removed
+            numDirRemoved += 1
+    
+    # Log
+    logger(f"Files removed: {numFilesRemoved} - Directories removed: {numDirRemoved}")
     
     return True
 
@@ -303,10 +339,10 @@ def process(source: str, replica: str, logs: str = None) -> bool:
         if not cloneSource(replica, foundFolders):
             logger("Failed to create the replica folder properly", 2)
             return False
+        logger("Done checking integrity.")
     except OSError as err:
         logger(err, 2)
         return False
-    logger("Successfully cloned!")
 
     # Remove any files that do not exist
     try:
@@ -316,10 +352,10 @@ def process(source: str, replica: str, logs: str = None) -> bool:
     except OSError as err:
         logger(err, 2)
         return False
-    logger("Successfully removed old files!")
 
     # Log
     logger("Backup completed.")
+    return True
     
 
 def main():
@@ -360,7 +396,9 @@ def main():
 
     # Trigger the scheduler
     for i in range(int(sys.argv[4])):
-        process(source=sys.argv[1], replica=sys.argv[2], logs=sys.argv[5])
+        if not process(source=sys.argv[1], replica=sys.argv[2], logs=sys.argv[5]):
+            logger("SOMETHING WENT WRONG! Please check the log file.")
+            break
         time.sleep(int(sys.argv[3]))
 
 
