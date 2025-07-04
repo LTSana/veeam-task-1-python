@@ -106,7 +106,7 @@ def cloneSource(replicaPath: str, paths: list) -> bool:
 
         # Log
         if not os.path.exists(replicaPath):
-            logger(f"Replica directory does not exist! Creating replica directory: {path.get('directory')}")
+            logger(f"Replica directory does not exist! Creating replica directory: {replicaPath}")
         
         os.makedirs(replicaPath, exist_ok=True)
     except OSError as err:
@@ -285,7 +285,7 @@ def logger(msg: str, level: int = 0) -> str:
         initializingLogFile = os.path.isfile(f"{os.path.join(GLOBAL_LOG_PATH, "log.txt")}")
 
         # Create/open the log file
-        file = open(file=f"{os.path.join(GLOBAL_LOG_PATH, "log.txt")}", mode="a")
+        file = open(file=f"{os.path.join(GLOBAL_LOG_PATH, "log.txt")}", mode="a", encoding="utf-8")
 
         # Add the column information
         if not initializingLogFile:
