@@ -396,7 +396,7 @@ def main():
     # Trigger the scheduler
     for i in range(int(sys.argv[4])):
         if not process(source=sys.argv[1], replica=sys.argv[2], logs=sys.argv[5]):
-            logger("SOMETHING WENT WRONG! Please check the log file.")
+            logger("SOMETHING WENT WRONG! Please check the log file.", 2)
             break
         time.sleep(int(sys.argv[3]))
 
