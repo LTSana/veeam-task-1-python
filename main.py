@@ -290,6 +290,8 @@ def logger(msg: str, level: int = 0) -> str:
         if not initializingLogFile:
             file.write("| LEVEL | DATE | MESSAGE\n")
 
+    except FileNotFoundError as err:
+        raise FileNotFoundError(f"An error occured during log file creation/opening! Error: {err}")
     except OSError as err:
         raise OSError(f"An error occured during log file creation/opening! Error: {err}")
 
@@ -315,7 +317,10 @@ def process(source: str, replica: str, logs: str = None) -> bool:
     try:
         logger("Starting backup...")
     except NotADirectoryError as err:
-        print(f"Please enter a valid folder for log file! Error: {err}")
+        print(f"Log file crash! {err}")
+        return False
+    except FileNotFoundError as err:
+        print(f"Log file crash! {err}")
         return False
     except OSError as err:
         print(err)
