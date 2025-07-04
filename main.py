@@ -33,12 +33,12 @@ GLOBAL_LOG_PATH = BASE_DIR # The path to the log file (Default to current runnin
 def getFolders(sourcePath: str) -> list:
     """ This function is for building a list of all the paths for each file in the source folder. """
     
-    # Log
-    logger(f"Collecting all folders and files from {sourcePath}")
-    
     # Check if the path exists
     if not os.path.exists(sourcePath):
         raise NotADirectoryError(f"Path: \"{sourcePath}\" does not exist! Check your path or try another path.")
+    
+    # Log
+    logger(f"Collecting all folders and files from {sourcePath}")
 
     # Crawl the parent folder and subfolders of the given path
     result = []
