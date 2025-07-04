@@ -240,8 +240,7 @@ def md5Hasher(filePath: str) -> str:
     try:
         file = open(file=filePath, mode="rb")
     except OSError as err:
-        logger(f"An Error occured during opening of the MD5 hash file of {filePath}! Error: {err}", 2)
-        return False
+        raise OSError(f"An Error occured during opening of the MD5 hash file of {filePath}! Error: {err}")
     
     # Update the hasher
     for line in iter(lambda: file.read(1024 * 1024), b""):
