@@ -277,23 +277,22 @@ def logger(msg: str, level: int = 0) -> str:
     if not os.path.exists(GLOBAL_LOG_PATH):
         raise NotADirectoryError(f"ERROR: {GLOBAL_LOG_PATH} is invalid!")
     
+    # Check if this is the first time creating the log file
+    initializingLogFile = os.path.isfile(f"{os.path.join(GLOBAL_LOG_PATH, "log.txt")}")
+    
     # Create the log file if it does not exist
     try:
-
-        # Check if this is the first time creating the log file
-        initializingLogFile = os.path.isfile(f"{os.path.join(GLOBAL_LOG_PATH, "log.txt")}")
-
-        # Create/open the log file
+        
+        # Create/open the log file at the end for appending
         file = open(file=f"{os.path.join(GLOBAL_LOG_PATH, "log.txt")}", mode="a", encoding="utf-8")
-
-        # Add the column information
-        if not initializingLogFile:
-            file.write("| LEVEL | DATE | MESSAGE\n")
-
     except FileNotFoundError as err:
         raise FileNotFoundError(f"An error occured during log file creation/opening! Error: {err}")
     except OSError as err:
         raise OSError(f"An error occured during log file creation/opening! Error: {err}")
+    
+    # Add the column information
+    if not initializingLogFile:
+        file.write("| LEVEL | DATE | MESSAGE\n")
 
     # Write all the logs back to the file
     print(formattedMsg)
